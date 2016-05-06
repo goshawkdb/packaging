@@ -56,7 +56,7 @@ let
       src = fetchhg {
         inherit rev;
         url = "https://src.${goPackagePath}";
-        sha256 = "04fy03rga2nd399grr8ws7fmk3g6gnjqwndclrr1dc87p91yh0jy";
+        sha256 = "0d63wd353mb81i411ms3biy43iap239lw4y236lz0ksr07mdypr4";
       };
       propagatedBuildInputs = [ capnp ];
     };
@@ -66,12 +66,12 @@ let
       goPackagePath = "goshawkdb.io/server";
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/goshawkdb_${goshawkdbVersion}.tar.gz";
-        sha256 = "0sq7p5m8aqm1mqdm5qid4lh1hdrn26yi0pcz624crwcyp5nh891k";
+        sha256 = "0as49i51bcl1xghhgzkcyri20nyhmwqvjg0c321y8d4an0kd1g9y";
       } // {
         archiveTimeStampSrc = "server-goshawkdb_${goshawkdbVersion}/.hg_archival.txt";
         license = "server-goshawkdb_${goshawkdbVersion}/LICENSE";
       };
-      buildInputs = [ goshawkdb-common capnp skiplist chancell gomdb crypto ];
+      buildInputs = [ goshawkdb-common capnp skiplist chancell gomdb ];
     };
 
     goshawkdb-server-dist = stdenv.mkDerivation {
