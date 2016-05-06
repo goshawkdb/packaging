@@ -48,6 +48,9 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Fri May 06 2016  Matthew Sackman <matthew@goshawkdb.io> 0.2-1
+- New upstream release
+
 * Fri Dec 18 2015  Matthew Sackman <matthew@goshawkdb.io> 0.1-1
 - Initial release
 
