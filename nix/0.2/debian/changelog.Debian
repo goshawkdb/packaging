@@ -1,0 +1,11 @@
+goshawkdb-server (0.2-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Matthew Sackman <matthew@goshawkdb.io>  Fri, 06 May 2016 13:30:00 +0000
+
+goshawkdb-server (0.1-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Matthew Sackman <matthew@goshawkdb.io>  Fri, 18 Dec 2015 17:37:22 +0000
