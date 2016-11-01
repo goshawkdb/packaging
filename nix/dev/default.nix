@@ -1,6 +1,8 @@
 # nix-build dev
 
-with import <nixpkgs> {};
+{ pkgs ? import <nixpkgs> {} }:
+
+with pkgs;
 
 let
   goshawkdbVersion = "dev";
@@ -26,6 +28,29 @@ let
       findDepsH list [];
 
   self = rec {
+    runc = rec {
+      name = "runc";
+      goPackagePath = "github.com/opencontainers/runc";
+      rev = "c91b5bea4830a57eac7882d7455d59518cdf70ec";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "06bxc4g3frh4i1lkzvwdcwmzmr0i52rz4a4pij39s15zaigm79wk";
+      };
+    };
+
+    gosu = rec {
+      name = "gosu";
+      goPackagePath = "github.com/tianon/gosu";
+      rev = "d2937f478b317e55a77e0e0ed4f79a333a6f5735";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "074md9gzsmydcrzh8fq9l4pmk9d1y5sdkwjpsgxca77ns2bi4wv9";
+      };
+      extraSrcs = findDeps [ runc ];
+    };
+
     skiplist = rec {
       name = "skiplist";
       goPackagePath = "github.com/msackman/skiplist";
@@ -112,7 +137,7 @@ let
         sha256 = "1wbbz2m0kwnx75w6viwsdwy5r9hd1idq5gmalnp79ghxssgbp08p";
       };
       extraSrcs = findDeps [ capnp ];
-      propagatedBuildInputs = [ (buildGoPackage capnp) ];
+      propagatedBuildInputs = [ built.capnp ];
     };
 
     goshawkdb-server = rec {
@@ -121,12 +146,12 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "0walbalyicncp9h38ba8j79aazw2i9a26phzhpbyvwz9akgb1ymc";
+        sha256 = "159ynbgy2zs4sgq0abvvlc4ajlgl7m8j903ilb8w0mjm3j5bpyyz";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
       };
-      subPackages = [ "cmd/goshawkdb" ]; # we may want to debitrot consistency checker
+      subPackages = [ "cmd/goshawkdb" ]; # we may want to add consistency checker
       extraSrcs = findDeps [ goshawkdb-common capnp skiplist chancell gomdb gotimerwheel ];
       propagatedBuildInputs = [ lmdb0 ];
     };
@@ -134,7 +159,7 @@ let
     goshawkdb-server-dist = stdenv.mkDerivation {
       name = "goshawkdb-server-dist";
       buildInputs = [ patchelf binutils ];
-      src = (buildGoPackage goshawkdb-server).bin;
+      src = built.goshawkdb-server.bin;
       builder = ./builder-patchelf.sh;
     };
 
@@ -169,6 +194,35 @@ let
       inherit (goshawkdb-server) src;
       inherit (goshawkdb-server.src) archiveTimeStampSrc;
       inherit goshawkdbVersion;
+    };
+
+    docker-image = dockerTools.buildImage {
+      name = "goshawkdb";
+      tag = goshawkdbVersion;
+      runAsRoot = ''
+        #!${stdenv.shell}
+        ${dockerTools.shadowSetup}
+        groupadd -r goshawkdb
+        useradd -r -g goshawkdb -d /data -M goshawkdb
+        mkdir /data
+        chown goshawkdb:goshawkdb /data
+      '';
+      config = {
+        Cmd = [ "${built.gosu.bin}/bin/gosu" "goshawkdb" "${built.goshawkdb-server.bin}/bin/goshawkdb" "-dir" "/data" "-port" "7892" "-config" "/data/config.json" "-cert" "/data/cert.pem" ];
+        ExposedPorts = {
+          "7892/tcp" = {};
+        };
+        WorkingDir = "/data";
+        Volumes = {
+          "/data" = {};
+        };
+      };
+    };
+
+    built = {
+      gosu = buildGoPackage self.gosu;
+      capnp = buildGoPackage self.capnp;
+      goshawkdb-server = buildGoPackage self.goshawkdb-server;
     };
   };
 in
