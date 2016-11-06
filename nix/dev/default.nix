@@ -146,7 +146,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "159ynbgy2zs4sgq0abvvlc4ajlgl7m8j903ilb8w0mjm3j5bpyyz";
+        sha256 = "1phyvz0f34hd7y0sag8nyrkmcxdgj6b97i1rmpk8cakd4bc45kw7";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
@@ -196,9 +196,65 @@ let
       inherit goshawkdbVersion;
     };
 
+    docker-entrypoint = writeScript "entrypoint.sh" ''
+      #!${busybox}/bin/ash
+      set -e
+      if [ "$1" = "goshawkdb" ]; then
+        ${busybox}/bin/chown -R goshawkdb /data
+        exec ${built.gosu.bin}/bin/gosu goshawkdb \
+          ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -dir /data/goshawkdb \
+          -config /data/config.json \
+          -cert /data/clusterCert.pem
+      fi
+      if [ "$1" = "setup" ]; then
+        if [ -e /data/goshawkdb -o -e /data/config.json -o -e /data/clusterCert.pem ]; then
+          printf "/data is not empty. Cannot continue with setup"
+          exit 1
+        fi
+
+        ${busybox}/bin/chown -R goshawkdb /data
+        ${built.gosu.bin}/bin/gosu goshawkdb ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -gen-cluster-cert > /data/clusterCert.pem
+        ${built.gosu.bin}/bin/gosu goshawkdb ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -cert /data/clusterCert.pem \
+          -gen-client-cert 1> /data/clientKeyPair.pem 2> /data/clientKeyPairFingerprint.txt
+        fp=$(${busybox}/bin/grep 'Fingerprint:' /data/clientKeyPairFingerprint.txt | ${busybox}/bin/sed -e 's/^.\+Fingerprint: //')
+        ${busybox}/bin/sed -e "s/FINGERPRINT/$fp/" < ${default-config} > /data/config.json
+
+        ${busybox}/bin/mkdir /data/goshawkdb
+        ${busybox}/bin/chown -R goshawkdb:goshawkdb /data
+        ${busybox}/bin/chmod 400 /data/clusterCert.pem /data/clientKeyPair.pem
+        ${busybox}/bin/chmod 444 /data/config.json
+        ${busybox}/bin/chmod 700 /data/goshawkdb
+
+        exit 0
+      fi
+      exec "$@"
+    '';
+
+    default-config = writeScript "config.json" ''
+      {
+        "ClusterId": "MyFirstGoshawkDBCluster",
+        "Version": 1,
+        "Hosts": ["localhost"],
+        "F": 0,
+        "MaxRMCount": 5,
+        "ClientCertificateFingerprints": {
+          "FINGERPRINT": {
+            "myFirstRoot": {
+              "Read": true,
+              "Write": true
+            }
+          }
+        }
+      }
+    '';
+
     docker-image = dockerTools.buildImage {
       name = "goshawkdb";
       tag = goshawkdbVersion;
+
       runAsRoot = ''
         #!${stdenv.shell}
         ${dockerTools.shadowSetup}
@@ -207,10 +263,12 @@ let
         mkdir /data
         chown goshawkdb:goshawkdb /data
       '';
+
       config = {
-        Cmd = [ "${built.gosu.bin}/bin/gosu" "goshawkdb" "${built.goshawkdb-server.bin}/bin/goshawkdb" "-dir" "/data" "-port" "7892" "-config" "/data/config.json" "-cert" "/data/cert.pem" ];
+        Cmd = [ "goshawkdb" ];
+        Entrypoint = [ docker-entrypoint ];
         ExposedPorts = {
-          "7892/tcp" = {};
+          "7894/tcp" = {};
         };
         WorkingDir = "/data";
         Volumes = {
