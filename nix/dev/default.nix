@@ -252,7 +252,7 @@ let
     '';
 
     docker-image = dockerTools.buildImage {
-      name = "goshawkdb";
+      name = "goshawkdb-server";
       tag = goshawkdbVersion;
 
       runAsRoot = ''
