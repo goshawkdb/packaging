@@ -1,6 +1,8 @@
 # nix-build dev
 
-with import <nixpkgs> {};
+{ pkgs ? import <nixpkgs> {} }:
+
+with pkgs;
 
 let
   goshawkdbVersion = "dev";
@@ -26,6 +28,29 @@ let
       findDepsH list [];
 
   self = rec {
+    runc = rec {
+      name = "runc";
+      goPackagePath = "github.com/opencontainers/runc";
+      rev = "c91b5bea4830a57eac7882d7455d59518cdf70ec";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "06bxc4g3frh4i1lkzvwdcwmzmr0i52rz4a4pij39s15zaigm79wk";
+      };
+    };
+
+    gosu = rec {
+      name = "gosu";
+      goPackagePath = "github.com/tianon/gosu";
+      rev = "d2937f478b317e55a77e0e0ed4f79a333a6f5735";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "074md9gzsmydcrzh8fq9l4pmk9d1y5sdkwjpsgxca77ns2bi4wv9";
+      };
+      extraSrcs = findDeps [ runc ];
+    };
+
     skiplist = rec {
       name = "skiplist";
       goPackagePath = "github.com/msackman/skiplist";
@@ -112,7 +137,7 @@ let
         sha256 = "1wbbz2m0kwnx75w6viwsdwy5r9hd1idq5gmalnp79ghxssgbp08p";
       };
       extraSrcs = findDeps [ capnp ];
-      propagatedBuildInputs = [ (buildGoPackage capnp) ];
+      propagatedBuildInputs = [ built.capnp ];
     };
 
     goshawkdb-server = rec {
@@ -121,12 +146,12 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "0walbalyicncp9h38ba8j79aazw2i9a26phzhpbyvwz9akgb1ymc";
+        sha256 = "1phyvz0f34hd7y0sag8nyrkmcxdgj6b97i1rmpk8cakd4bc45kw7";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
       };
-      subPackages = [ "cmd/goshawkdb" ]; # we may want to debitrot consistency checker
+      subPackages = [ "cmd/goshawkdb" ]; # we may want to add consistency checker
       extraSrcs = findDeps [ goshawkdb-common capnp skiplist chancell gomdb gotimerwheel ];
       propagatedBuildInputs = [ lmdb0 ];
     };
@@ -134,7 +159,7 @@ let
     goshawkdb-server-dist = stdenv.mkDerivation {
       name = "goshawkdb-server-dist";
       buildInputs = [ patchelf binutils ];
-      src = (buildGoPackage goshawkdb-server).bin;
+      src = built.goshawkdb-server.bin;
       builder = ./builder-patchelf.sh;
     };
 
@@ -169,6 +194,93 @@ let
       inherit (goshawkdb-server) src;
       inherit (goshawkdb-server.src) archiveTimeStampSrc;
       inherit goshawkdbVersion;
+    };
+
+    docker-entrypoint = writeScript "entrypoint.sh" ''
+      #!${busybox}/bin/ash
+      set -e
+      if [ "$1" = "goshawkdb" ]; then
+        ${busybox}/bin/chown -R goshawkdb /data
+        exec ${built.gosu.bin}/bin/gosu goshawkdb \
+          ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -dir /data/goshawkdb \
+          -config /data/config.json \
+          -cert /data/clusterCert.pem
+      fi
+      if [ "$1" = "setup" ]; then
+        if [ -e /data/goshawkdb -o -e /data/config.json -o -e /data/clusterCert.pem ]; then
+          printf "/data is not empty. Cannot continue with setup"
+          exit 1
+        fi
+
+        ${busybox}/bin/chown -R goshawkdb /data
+        ${built.gosu.bin}/bin/gosu goshawkdb ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -gen-cluster-cert > /data/clusterCert.pem
+        ${built.gosu.bin}/bin/gosu goshawkdb ${built.goshawkdb-server.bin}/bin/goshawkdb \
+          -cert /data/clusterCert.pem \
+          -gen-client-cert 1> /data/clientKeyPair.pem 2> /data/clientKeyPairFingerprint.txt
+        fp=$(${busybox}/bin/grep 'Fingerprint:' /data/clientKeyPairFingerprint.txt | ${busybox}/bin/sed -e 's/^.\+Fingerprint: //')
+        ${busybox}/bin/sed -e "s/FINGERPRINT/$fp/" < ${default-config} > /data/config.json
+
+        ${busybox}/bin/mkdir /data/goshawkdb
+        ${busybox}/bin/chown -R goshawkdb:goshawkdb /data
+        ${busybox}/bin/chmod 400 /data/clusterCert.pem /data/clientKeyPair.pem
+        ${busybox}/bin/chmod 444 /data/config.json
+        ${busybox}/bin/chmod 700 /data/goshawkdb
+
+        exit 0
+      fi
+      exec "$@"
+    '';
+
+    default-config = writeScript "config.json" ''
+      {
+        "ClusterId": "MyFirstGoshawkDBCluster",
+        "Version": 1,
+        "Hosts": ["localhost"],
+        "F": 0,
+        "MaxRMCount": 5,
+        "ClientCertificateFingerprints": {
+          "FINGERPRINT": {
+            "myFirstRoot": {
+              "Read": true,
+              "Write": true
+            }
+          }
+        }
+      }
+    '';
+
+    docker-image = dockerTools.buildImage {
+      name = "goshawkdb-server";
+      tag = goshawkdbVersion;
+
+      runAsRoot = ''
+        #!${stdenv.shell}
+        ${dockerTools.shadowSetup}
+        groupadd -r goshawkdb
+        useradd -r -g goshawkdb -d /data -M goshawkdb
+        mkdir /data
+        chown goshawkdb:goshawkdb /data
+      '';
+
+      config = {
+        Cmd = [ "goshawkdb" ];
+        Entrypoint = [ docker-entrypoint ];
+        ExposedPorts = {
+          "7894/tcp" = {};
+        };
+        WorkingDir = "/data";
+        Volumes = {
+          "/data" = {};
+        };
+      };
+    };
+
+    built = {
+      gosu = buildGoPackage self.gosu;
+      capnp = buildGoPackage self.capnp;
+      goshawkdb-server = buildGoPackage self.goshawkdb-server;
     };
   };
 in
