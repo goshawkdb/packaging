@@ -2,7 +2,6 @@ Summary: GoshawkDB distributed data store server
 Name: goshawkdb-server
 Version: dev
 Release: 1
-Requires: lmdb-libs >= 0.9.14
 Group: Applications/Databases
 License: AGPLv3
 SOURCE0: %{buildroot}/%{name}-%{version}.tar.xz
