@@ -42,7 +42,6 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %doc LICENSE
-%{_bindir}/consistencychecker
 %{_bindir}/goshawkdb
 
 
