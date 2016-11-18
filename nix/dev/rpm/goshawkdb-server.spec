@@ -42,12 +42,14 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %doc LICENSE
-%{_bindir}/consistencychecker
 %{_bindir}/goshawkdb
 
 
 %changelog
 * Tue Oct 18 2016  Matthew Sackman <matthew@goshawkdb.io> dev-1
+- New upstream release
+
+* Fri Nov 18 2016  Matthew Sackman <matthew@goshawkdb.io> 0.3-1
 - New upstream release
 
 * Fri May 06 2016  Matthew Sackman <matthew@goshawkdb.io> 0.2-1
