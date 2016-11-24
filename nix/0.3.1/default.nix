@@ -1,11 +1,11 @@
-# nix-build dev
+# nix-build 0.3.1
 
 { pkgs ? import <nixpkgs> {} }:
 
 with pkgs;
 
 let
-  goshawkdbVersion = "dev";
+  goshawkdbVersion = "0.3.1";
   archivePrefix = if goshawkdbVersion == "dev" then "" else "goshawkdb_";
 
   findDeps = list:
@@ -145,7 +145,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "1phyvz0f34hd7y0sag8nyrkmcxdgj6b97i1rmpk8cakd4bc45kw7";
+        sha256 = "1sqwl82z6ni573g0590xp66mp1xnjj80vxw12gc3kdhl25r520ms";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
