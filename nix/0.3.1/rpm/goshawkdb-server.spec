@@ -1,6 +1,6 @@
 Summary: GoshawkDB distributed data store server
 Name: goshawkdb-server
-Version: dev
+Version: 0.3.1
 Release: 1
 Group: Applications/Databases
 License: AGPLv3
@@ -46,9 +46,6 @@ rm -rf %{buildroot}
 
 
 %changelog
-* Tue Oct 18 2016  Matthew Sackman <matthew@goshawkdb.io> dev-1
-- New upstream release
-
 * Thu Nov 24 2016  Matthew Sackman <matthew@goshawkdb.io> 0.3.1-1
 - New upstream release
 
