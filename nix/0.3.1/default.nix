@@ -1,11 +1,11 @@
-# nix-build dev
+# nix-build 0.3.1
 
 { pkgs ? import <nixpkgs> {} }:
 
 with pkgs;
 
 let
-  goshawkdbVersion = "dev";
+  goshawkdbVersion = "0.3.1";
   archivePrefix = if goshawkdbVersion == "dev" then "" else "goshawkdb_";
 
   findDeps = list:
