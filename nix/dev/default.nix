@@ -5,8 +5,8 @@
 with pkgs;
 
 let
-  goshawkdbVersion = "dev";
-  archivePrefix = if goshawkdbVersion == "dev" then "" else "goshawkdb_";
+  goshawkdbVersion = "T40";
+  archivePrefix = if goshawkdbVersion == "T40" then "" else "goshawkdb_";
 
   findDeps = list:
     let
@@ -127,15 +127,49 @@ let
       extraSrcs = findDeps [ rbtree ];
     };
 
+    websocket = rec {
+      name = "websocket";
+      goPackagePath = "github.com/gorilla/websocket";
+      rev = "3ab3a8b8831546bd18fd182c20687ca853b2bb13";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "17y94ngp1yrswq5pxxy97naiw6jgxz2yvm8zydi83gfixdgs99fc";
+      };
+    };
+
+    fwd = rec {
+      name = "fwd";
+      goPackagePath = "github.com/philhofer/fwd";
+      rev = "98c11a7a6ec829d672b03833c3d69a7fae1ca972";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "1vp52nxmnh3acmxa2izlwcly65apm7fmiil76vzijakni36nxi8h";
+      };
+    };
+
+    msgp = rec {
+      name = "msgp";
+      goPackagePath = "github.com/tinylib/msgp";
+      rev = "b433144bef5f20ebd771c0872945f6707ed3f178";
+      src = fetchgit {
+        inherit rev;
+        url = "https://${goPackagePath}.git";
+        sha256 = "0fn803p3nbn44kj6h47cs12c906djgzs7l9pjgprm4gfa10lndvb";
+      };
+      extraSrcs = findDeps [ fwd ];
+    };
+
     goshawkdb-common = rec {
       name = "goshawkdb-common";
       goPackagePath = "goshawkdb.io/common";
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/common/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "0ibcriwq9gfmyp1i3fyb3npqpvyw1qd3jjsgpjfyx1zf0v165rqs";
+        sha256 = "0yj8k0hgdw7lh4jdgiaig8sk4idg2bc1yvsdcf34cgsj6l2z96fi";
       };
-      extraSrcs = findDeps [ capnp ];
+      extraSrcs = findDeps [ capnp msgp ];
       propagatedBuildInputs = [ built.capnp ];
     };
 
@@ -145,13 +179,13 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "1sy8hp25ilw5m1q73y52dlqjfh9hrgan2n56ic468vdcq2p65hg6";
+        sha256 = "1s9bjdz3s51q797rrksfgzrw9wfcvgln0g4yd1bkkr4z80k2cag4";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
       };
       subPackages = [ "cmd/goshawkdb" ]; # we may want to add consistency checker
-      extraSrcs = findDeps [ goshawkdb-common capnp skiplist chancell gomdb gotimerwheel ];
+      extraSrcs = findDeps [ goshawkdb-common capnp skiplist chancell gomdb gotimerwheel msgp websocket ];
       propagatedBuildInputs = [ lmdb0 ];
     };
 
