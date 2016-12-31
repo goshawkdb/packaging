@@ -167,7 +167,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/common/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "0yj8k0hgdw7lh4jdgiaig8sk4idg2bc1yvsdcf34cgsj6l2z96fi";
+        sha256 = "1qq0r4awag80ibfdjfan4ffx7qw1ccpbsls30xbspda42lym92yh";
       };
       extraSrcs = findDeps [ capnp msgp ];
       propagatedBuildInputs = [ built.capnp ];
@@ -179,7 +179,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "1s9bjdz3s51q797rrksfgzrw9wfcvgln0g4yd1bkkr4z80k2cag4";
+        sha256 = "1ics01mc6ajfd28pv3w3axn272b1y2gcxyfa5ksqmd43cc1x2w52";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
