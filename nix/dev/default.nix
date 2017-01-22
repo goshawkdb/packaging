@@ -5,8 +5,8 @@
 with pkgs;
 
 let
-  goshawkdbVersion = "T40";
-  archivePrefix = if goshawkdbVersion == "T40" then "" else "goshawkdb_";
+  goshawkdbVersion = "dev";
+  archivePrefix = if goshawkdbVersion == "dev" then "" else "goshawkdb_";
 
   findDeps = list:
     let
@@ -167,7 +167,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/common/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "1qq0r4awag80ibfdjfan4ffx7qw1ccpbsls30xbspda42lym92yh";
+        sha256 = "0gpiyci7irzxxvi22znyq1vxp20hva1g495ihqxmbzyqbh60d0gl";
       };
       extraSrcs = findDeps [ capnp msgp ];
       propagatedBuildInputs = [ built.capnp ];
@@ -179,7 +179,7 @@ let
       rev = goshawkdbVersion;
       src = fetchurl {
         url = "https://src.goshawkdb.io/server/archive/${archivePrefix}${goshawkdbVersion}.tar.gz";
-        sha256 = "1ics01mc6ajfd28pv3w3axn272b1y2gcxyfa5ksqmd43cc1x2w52";
+        sha256 = "1fkmjvqa0qsww3lfak8590kmwfibsn4g5hfxvkchycxa6zj7b16z";
       } // {
         archiveTimeStampSrc = "server-${archivePrefix}${goshawkdbVersion}/.hg_archival.txt";
         license = "server-${archivePrefix}${goshawkdbVersion}/LICENSE";
@@ -238,7 +238,8 @@ let
           ${built.goshawkdb-server.bin}/bin/goshawkdb \
           -dir /data/goshawkdb \
           -config /data/config.json \
-          -cert /data/clusterCert.pem
+          -cert /data/clusterCert.pem \
+          -wss
       fi
       if [ "$1" = "setup" ]; then
         if [ -e /data/goshawkdb -o -e /data/config.json -o -e /data/clusterCert.pem ]; then
@@ -302,6 +303,7 @@ let
         Entrypoint = [ docker-entrypoint ];
         ExposedPorts = {
           "7894/tcp" = {};
+          "7895/tcp" = {};
         };
         WorkingDir = "/data";
         Volumes = {
